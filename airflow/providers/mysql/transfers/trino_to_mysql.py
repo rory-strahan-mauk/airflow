@@ -42,6 +42,7 @@ class TrinoToMySqlOperator(BaseOperator):
         import, typically use to truncate of delete in place
         of the data coming in, allowing the task to be idempotent (running
         the task twice won't double load data). (templated)
+    :param local_infile: Boolean flag determining if local_infile should be used with MySqlHook.
     """
 
     template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator")
@@ -60,6 +61,7 @@ class TrinoToMySqlOperator(BaseOperator):
         trino_conn_id: str = "trino_default",
         mysql_conn_id: str = "mysql_default",
         mysql_preoperator: str | None = None,
+        local_infile: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,13 +70,14 @@ class TrinoToMySqlOperator(BaseOperator):
         self.mysql_conn_id = mysql_conn_id
         self.mysql_preoperator = mysql_preoperator
         self.trino_conn_id = trino_conn_id
+        self.local_infile = local_infile
 
     def execute(self, context: Context) -> None:
         trino = TrinoHook(trino_conn_id=self.trino_conn_id)
         self.log.info("Extracting data from Trino: %s", self.sql)
         results = trino.get_records(self.sql)
 
-        mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
+        mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id, local_infile=self.local_infile)
         if self.mysql_preoperator:
             self.log.info("Running MySQL preoperator")
             self.log.info(self.mysql_preoperator)
